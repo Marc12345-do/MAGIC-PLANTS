@@ -9,13 +9,11 @@ import {
   View,
 } from "react-native";
 
-export default function PlantWatch() {
+export default function MAGICPLANTS() {
   const [plantName, setPlantName] = useState("");
   const [frequency, setFrequency] = useState("");
-  const [savedPlant, setSavedPlant] = useState("");
-  const [lastWatering, setLastWatering] = useState("");
-  const [wateringHistory, setWateringHistory] = useState<string[]>([]);
-  const [progress, setProgress] = useState(0);
+
+  const [plants, setPlants] = useState<any[]>([]);
 
   const addPlant = () => {
     if (plantName.trim() === "") {
@@ -38,44 +36,53 @@ export default function PlantWatch() {
       return;
     }
 
-    setSavedPlant(plantName);
+    const newPlant = {
+      id: Date.now(),
+      name: plantName,
+      frequency: freq,
+      lastWatering: "",
+      progress: 0,
+      history: [],
+    };
 
-    Alert.alert(
-      "Planta registrada",
-      `${plantName} fue agregada correctamente.`
-    );
+    setPlants([...plants, newPlant]);
+
+    setPlantName("");
+    setFrequency("");
+
+    Alert.alert("Éxito", "Planta agregada correctamente.");
   };
 
-  const waterPlant = () => {
-    if (!savedPlant) {
-      Alert.alert(
-        "Error",
-        "Debes registrar una planta antes de agregar un riego."
-      );
-      return;
-    }
+  const waterPlant = (id: number) => {
+    const currentDate = new Date().toLocaleString();
 
-    const date = new Date().toLocaleString();
+    const updatedPlants = plants.map((plant) => {
+      if (plant.id === id) {
+        const newProgress =
+          plant.progress + 20 > 100
+            ? 100
+            : plant.progress + 20;
 
-    setLastWatering(date);
+        return {
+          ...plant,
+          lastWatering: currentDate,
+          progress: newProgress,
+          history: [currentDate, ...plant.history],
+        };
+      }
 
-    setWateringHistory((prev) => [date, ...prev]);
-
-    setProgress((prev) => {
-      const newProgress = prev + 20;
-      return newProgress > 100 ? 100 : newProgress;
+      return plant;
     });
 
-    Alert.alert(
-      "Riego registrado",
-      `Se registró el riego de ${savedPlant}.`
-    );
+    setPlants(updatedPlants);
+
+    Alert.alert("Riego registrado");
   };
 
-  const resetData = () => {
+  const deletePlant = (id: number) => {
     Alert.alert(
-      "Confirmación",
-      "¿Deseas eliminar todos los registros?",
+      "Eliminar",
+      "¿Deseas eliminar esta planta?",
       [
         {
           text: "Cancelar",
@@ -84,37 +91,30 @@ export default function PlantWatch() {
         {
           text: "Sí",
           onPress: () => {
-            setPlantName("");
-            setFrequency("");
-            setSavedPlant("");
-            setLastWatering("");
-            setWateringHistory([]);
-            setProgress(0);
+            setPlants(
+              plants.filter((plant) => plant.id !== id)
+            );
           },
         },
       ]
     );
   };
 
-  const getStatus = () => {
-    if (!lastWatering) {
-      return "🔴 Necesita agua";
-    }
-
+  const getStatus = (progress: number) => {
     if (progress >= 80) {
-      return "🟢 Excelente cuidado";
+      return "Excelente";
     }
 
     if (progress >= 40) {
-      return "🟡 Buen estado";
+      return "Bien";
     }
 
-    return "🔴 Requiere atención";
+    return "Necesita atención";
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>🌱 MAGIC PLANTS</Text>
+      <Text style={styles.title}>MAGIC PLANTS</Text>
 
       <TextInput
         style={styles.input}
@@ -131,60 +131,98 @@ export default function PlantWatch() {
         onChangeText={setFrequency}
       />
 
-      <TouchableOpacity style={styles.button} onPress={addPlant}>
-        <Text style={styles.buttonText}>Agregar Planta</Text>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={addPlant}
+      >
+        <Text style={styles.buttonText}>
+          Agregar Planta
+        </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={waterPlant}>
-        <Text style={styles.buttonText}>Registrar Riego</Text>
-      </TouchableOpacity>
+      {plants.length === 0 ? (
+        <Text style={styles.emptyText}>
+          No hay plantas registradas.
+        </Text>
+      ) : (
+        plants.map((plant) => (
+          <View key={plant.id} style={styles.card}>
+            <Text style={styles.plantTitle}>
+                {plant.name}
+            </Text>
 
-      <TouchableOpacity style={styles.resetButton} onPress={resetData}>
-        <Text style={styles.buttonText}>Reiniciar Datos</Text>
-      </TouchableOpacity>
+            <Text>
+              Frecuencia: {plant.frequency} días
+            </Text>
 
-      {savedPlant !== "" && (
-        <View style={styles.info}>
-          <Text style={styles.sectionTitle}>Información de la Planta</Text>
+            <Text>
+              Último riego:{" "}
+              {plant.lastWatering || "Sin registros"}
+            </Text>
 
-          <Text>🌿 Planta: {savedPlant}</Text>
+            <Text>
+              Estado: {getStatus(plant.progress)}
+            </Text>
 
-          <Text>💧 Frecuencia: {frequency} días</Text>
+            <Text style={styles.section}>
+              Progreso de cuidado
+            </Text>
 
-          <Text>
-            📅 Último riego:{" "}
-            {lastWatering ? lastWatering : "Sin registros"}
-          </Text>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${plant.progress}%`,
+                  },
+                ]}
+              />
+            </View>
 
-          <Text>🚦 Estado: {getStatus()}</Text>
+            <Text>{plant.progress}%</Text>
 
-          <Text style={styles.sectionTitle}>Progreso de Cuidado</Text>
-
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${progress}%` },
-              ]}
-            />
-          </View>
-
-          <Text>{progress}% completado</Text>
-
-          <Text style={styles.sectionTitle}>
-            Historial de Riegos
-          </Text>
-
-          {wateringHistory.length === 0 ? (
-            <Text>No hay registros.</Text>
-          ) : (
-            wateringHistory.map((item, index) => (
-              <Text key={index}>
-                💧 {item}
+            <TouchableOpacity
+              style={styles.waterButton}
+              onPress={() =>
+                waterPlant(plant.id)
+              }
+            >
+              <Text style={styles.buttonText}>
+                Registrar Riego
               </Text>
-            ))
-          )}
-        </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() =>
+                deletePlant(plant.id)
+              }
+            >
+              <Text style={styles.buttonText}>
+                Eliminar Planta
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.section}>
+              Historial de Riegos
+            </Text>
+
+            {plant.history.length === 0 ? (
+              <Text>Sin registros.</Text>
+            ) : (
+              plant.history.map(
+                (
+                  item: string,
+                  index: number
+                ) => (
+                  <Text key={index}>
+                      {item}
+                  </Text>
+                )
+              )
+            )}
+          </View>
+        ))
       )}
     </ScrollView>
   );
@@ -195,7 +233,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     backgroundColor: "#F2FFF2",
-    justifyContent: "center",
   },
 
   title: {
@@ -206,26 +243,19 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    borderWidth: 1,
-    borderColor: "#999",
     backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
     padding: 10,
     marginBottom: 10,
-    borderRadius: 8,
   },
 
   button: {
     backgroundColor: "green",
     padding: 12,
     borderRadius: 8,
-    marginTop: 10,
-  },
-
-  resetButton: {
-    backgroundColor: "red",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 10,
+    marginBottom: 15,
   },
 
   buttonText: {
@@ -234,18 +264,27 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
-  info: {
-    marginTop: 25,
+  emptyText: {
+    textAlign: "center",
+    marginTop: 20,
+  },
+
+  card: {
     backgroundColor: "#fff",
     padding: 15,
     borderRadius: 10,
+    marginBottom: 15,
   },
 
-  sectionTitle: {
-    marginTop: 15,
-    marginBottom: 10,
+  plantTitle: {
+    fontSize: 18,
     fontWeight: "bold",
-    fontSize: 16,
+    marginBottom: 10,
+  },
+
+  section: {
+    marginTop: 10,
+    fontWeight: "bold",
   },
 
   progressBar: {
@@ -253,11 +292,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#ddd",
     borderRadius: 10,
     overflow: "hidden",
-    marginBottom: 10,
+    marginTop: 5,
+    marginBottom: 5,
   },
 
   progressFill: {
     height: "100%",
     backgroundColor: "green",
+  },
+
+  waterButton: {
+    backgroundColor: "#2E8B57",
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+
+  deleteButton: {
+    backgroundColor: "#D9534F",
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 10,
   },
 });
